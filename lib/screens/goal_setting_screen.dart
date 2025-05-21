@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/goal_model.dart';
-import '../services/goal_service.dart';
-import '../services/auth_service.dart';
-import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/waist_logo_widget.dart';
+import 'weekly_loss_screen.dart';
 
 class GoalSettingScreen extends StatefulWidget {
   const GoalSettingScreen({super.key});
@@ -13,95 +12,71 @@ class GoalSettingScreen extends StatefulWidget {
 
 class _GoalSettingScreenState extends State<GoalSettingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _goalService = GoalService();
-  final _authService = AuthService();
-  
+  final _calorieController = TextEditingController();
+  final _weightController = TextEditingController();
+  String? _goalType;
   bool _isLoading = false;
-  String _selectedGoalType = 'weight_loss';
-  final _targetWeightController = TextEditingController();
-  final _targetCaloriesController = TextEditingController();
-  final _targetStepsController = TextEditingController();
-  final _targetWaterController = TextEditingController();
-  final _weeklyGoalController = TextEditingController();
-  DateTime _startDate = DateTime.now();
-  DateTime _targetDate = DateTime.now().add(const Duration(days: 30));
+  double _targetWeight = 60; // 기본값
+
+  final List<String> _goalTypes = [
+    '다이어트',
+    '현재 유지',
+    '벌크업',
+  ];
 
   @override
   void dispose() {
-    _targetWeightController.dispose();
-    _targetCaloriesController.dispose();
-    _targetStepsController.dispose();
-    _targetWaterController.dispose();
-    _weeklyGoalController.dispose();
+    _calorieController.dispose();
+    _weightController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: isStartDate ? _startDate : _targetDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStartDate) {
-          _startDate = picked;
-        } else {
-          _targetDate = picked;
-        }
-      });
-    }
-  }
-
-  Future<void> _saveGoal() async {
+  Future<void> _handleGoalSetting() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_goalType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('목표 유형을 선택해주세요')),
+      );
+      return;
+    }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final user = await AuthService.getCurrentUser();
-      if (user == null) {
-        throw Exception('사용자 정보를 찾을 수 없습니다.');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('goal_type', _goalType!);
+      await prefs.setInt('target_calories', int.parse(_calorieController.text));
+      await prefs.setDouble('target_weight', _targetWeight);
+      await prefs.setBool('has_completed_goal_setting', true);
+      
+      print('DEBUG: [목표설정 완료] SharedPreferences 전체 값:');
+      for (var key in prefs.getKeys()) {
+        print('  $key = ${prefs.get(key)}');
       }
 
-      final goal = Goal(
-        userId: user.id,
-        targetWeight: double.parse(_targetWeightController.text),
-        targetCalories: double.parse(_targetCaloriesController.text),
-        targetSteps: int.parse(_targetStepsController.text),
-        targetWater: int.parse(_targetWaterController.text),
-        startDate: _startDate,
-        targetDate: _targetDate,
-        goalType: _selectedGoalType,
-        weeklyGoal: double.parse(_weeklyGoalController.text),
-      );
-
-      final savedGoal = await GoalService.setGoal(goal);
-
-      // 목표 알림 설정
-      await NotificationService().scheduleGoalReminder(
-        id: 1,
-        title: '목표 달성을 위한 알림',
-        body: '오늘의 목표를 확인하고 기록해보세요!',
-        scheduledTime: DateTime.now().add(const Duration(days: 1)),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목표가 설정되었습니다.')),
-      );
-
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('목표가 설정되었습니다')),
+        );
+        
+        // 홈 화면으로 이동 (이전 화면 스택 제거)
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류 발생: $e')),
-      );
+      print('DEBUG: 목표설정 저장 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -110,175 +85,124 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('목표 설정'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 목표 유형 선택
-                    DropdownButtonFormField<String>(
-                      value: _selectedGoalType,
-                      decoration: const InputDecoration(
-                        labelText: '목표 유형',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'weight_loss',
-                          child: Text('체중 감량'),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('목표 유형', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _goalTypes.map((String type) {
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              setState(() {
+                                _goalType = type;
+                              });
+                              if (type == '현재 유지') {
+                                final prefs = await SharedPreferences.getInstance();
+                                final double? signupWeight = prefs.getDouble('signup_weight');
+                                if (signupWeight != null) {
+                                  setState(() {
+                                    _targetWeight = signupWeight;
+                                  });
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _goalType == type ? Colors.blue : Colors.grey[300],
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Column(
+                              children: [
+                                Image.asset(
+                                  type == '다이어트'
+                                    ? 'assets/icons/diet.png'
+                                    : type == '현재 유지'
+                                      ? 'assets/icons/maintain.png'
+                                      : 'assets/icons/bulkup.png',
+                                  width: 50,
+                                  height: 50,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(type, style: TextStyle(color: _goalType == type ? Colors.white : Colors.black)),
+                              ],
+                            ),
+                          ),
                         ),
-                        DropdownMenuItem(
-                          value: 'weight_gain',
-                          child: Text('체중 증가'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'maintenance',
-                          child: Text('체중 유지'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedGoalType = value);
-                        }
-                      },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('목표 체중 (kg)', style: TextStyle(fontSize: 16)),
+                  Slider(
+                    value: _targetWeight,
+                    min: 1,
+                    max: 120,
+                    divisions: 119,
+                    label: _targetWeight.round().toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _targetWeight = value;
+                      });
+                    },
+                  ),
+                  Center(
+                    child: Text('${_targetWeight.round()} kg', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (_goalType == '다이어트') {
+                              final weeklyLoss = await Navigator.push<double>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => WeeklyLossScreen(targetWeight: _targetWeight),
+                                ),
+                              );
+                              // TODO: weeklyLoss 값 저장 및 이후 로직 처리
+                              if (weeklyLoss == null) return;
+                            }
+                            _handleGoalSetting();
+                          },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    const SizedBox(height: 16),
-
-                    // 목표 체중
-                    TextFormField(
-                      controller: _targetWeightController,
-                      decoration: const InputDecoration(
-                        labelText: '목표 체중 (kg)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '목표 체중을 입력해주세요';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return '유효한 숫자를 입력해주세요';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 목표 칼로리
-                    TextFormField(
-                      controller: _targetCaloriesController,
-                      decoration: const InputDecoration(
-                        labelText: '목표 칼로리 (kcal)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '목표 칼로리를 입력해주세요';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return '유효한 숫자를 입력해주세요';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 목표 걸음 수
-                    TextFormField(
-                      controller: _targetStepsController,
-                      decoration: const InputDecoration(
-                        labelText: '목표 걸음 수',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '목표 걸음 수를 입력해주세요';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return '유효한 숫자를 입력해주세요';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 목표 물 섭취량
-                    TextFormField(
-                      controller: _targetWaterController,
-                      decoration: const InputDecoration(
-                        labelText: '목표 물 섭취량 (ml)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '목표 물 섭취량을 입력해주세요';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return '유효한 숫자를 입력해주세요';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 주간 목표
-                    TextFormField(
-                      controller: _weeklyGoalController,
-                      decoration: const InputDecoration(
-                        labelText: '주간 목표 (kg)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '주간 목표를 입력해주세요';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return '유효한 숫자를 입력해주세요';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 시작일 선택
-                    ListTile(
-                      title: const Text('시작일'),
-                      subtitle: Text(_startDate.toString().split(' ')[0]),
-                      trailing: const Icon(Icons.calendar_today),
-                      onTap: () => _selectDate(context, true),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 목표일 선택
-                    ListTile(
-                      title: const Text('목표일'),
-                      subtitle: Text(_targetDate.toString().split(' ')[0]),
-                      trailing: const Icon(Icons.calendar_today),
-                      onTap: () => _selectDate(context, false),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 저장 버튼
-                    ElevatedButton(
-                      onPressed: _saveGoal,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('목표 설정하기'),
-                    ),
-                  ],
-                ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('목표 설정'),
+                  ),
+                ],
               ),
             ),
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
+      ),
     );
   }
-} 
+}

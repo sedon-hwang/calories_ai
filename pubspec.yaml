@@ -1,5 +1,5 @@
 name: calories_ai
-description: "A new Flutter project."
+description: A calorie tracking app with AI features.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -35,21 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.2.2
-  mailer: ^6.1.0
-  crypto: ^3.0.3
   http: ^1.1.0
-  jwt_decoder: ^2.0.1
-  fl_chart: ^0.65.0
-  image_picker: ^1.0.4
-  path_provider: ^2.1.2
-  path: ^1.8.3
-  flutter_local_notifications: ^16.2.0
-  timezone: ^0.9.2
-  share_plus: ^7.2.1
-  url_launcher: ^6.2.5
-  in_app_purchase: ^3.1.11
-  in_app_purchase_storekit: ^0.3.6
-  in_app_purchase_android: ^0.4.0
+  crypto: ^3.0.3
+  intl: ^0.19.0
+  provider: ^6.1.1
+  flutter_local_notifications: ^19.2.1
+  timezone: ^0.10.1
+  share_plus: ^11.0.0
+  in_app_purchase: ^3.1.13
+  in_app_purchase_android: ^0.4.0+1
+  in_app_purchase_storekit: ^0.4.0
+  image_picker: ^1.0.7
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +72,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -89,15 +86,12 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   # fonts:
-  #   - family: Schyler
+  #   - family: Pretendard
   #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
+  #       - asset: assets/fonts/Pretendard-Regular.otf
+  #       - asset: assets/fonts/Pretendard-Medium.otf
+  #         weight: 500
+  #       - asset: assets/fonts/Pretendard-Bold.otf
   #         weight: 700
   #
   # For details regarding fonts from package dependencies,

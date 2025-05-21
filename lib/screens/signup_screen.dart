@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import 'goal_setting_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -91,22 +94,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // 회원가입 처리
       final success = await _authService.signUp(user);
       if (success) {
+        // 회원가입 성공 직후 데이터 저장
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('signup_weight', user.weight);
+        await prefs.setBool('has_completed_signup', true);
+        await prefs.setString('user_data', jsonEncode(user.toJson()));
+        
+        print('DEBUG: [회원가입 직후] SharedPreferences 전체 값:');
+        for (var key in prefs.getKeys()) {
+          print('  $key = ${prefs.get(key)}');
+        }
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('회원가입이 완료되었습니다.')),
-          );
-          // 목표 설정 화면으로 이동
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const GoalSettingScreen(),
-            ),
-          );
+          // 로그인 상태로 설정
+          final loggedInUser = await _authService.signIn(user.email, user.password);
+          if (loggedInUser != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('회원가입이 완료되었습니다.')),
+            );
+            // 목표 설정 화면으로 이동 (이전 화면 스택 제거)
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const GoalSettingScreen(),
+              ),
+              (route) => false,
+            );
+          } else {
+            throw Exception('로그인에 실패했습니다.');
+          }
         }
       } else {
         throw Exception('회원가입에 실패했습니다.');
       }
     } catch (e) {
+      print('DEBUG: 회원가입 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('오류가 발생했습니다: $e')),
@@ -302,4 +324,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
     );
   }
-} 
+}

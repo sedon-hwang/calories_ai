@@ -19,12 +19,11 @@ class User {
     required this.activityLevel,
   });
 
-  // JSON 직렬화를 위한 메서드
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'email': email,
-      'password': password, // 실제 구현시에는 비밀번호를 해시화해야 합니다
+      'password': password,
       'birthDate': birthDate.toIso8601String(),
       'gender': gender,
       'height': height,
@@ -33,12 +32,11 @@ class User {
     };
   }
 
-  // JSON 역직렬화를 위한 팩토리 생성자
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       name: json['name'],
       email: json['email'],
-      password: json['password'],
+      password: json['password'] ?? '',
       birthDate: DateTime.parse(json['birthDate']),
       gender: json['gender'],
       height: json['height'].toDouble(),
@@ -46,4 +44,4 @@ class User {
       activityLevel: json['activityLevel'],
     );
   }
-} 
+}
