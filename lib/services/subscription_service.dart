@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -95,7 +96,7 @@ class SubscriptionService {
       );
 
       if (response.statusCode == 200) {
-        _currentSubscription = Subscription.fromJson(response.data);
+        _currentSubscription = Subscription.fromJson(jsonDecode(response.body));
         return _currentSubscription;
       } else {
         return null;

@@ -1,5 +1,5 @@
 name: calories_ai
-description: A calorie tracking app with AI features.
+description: AI-powered calorie tracking app
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.3 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -45,7 +45,11 @@ dependencies:
   in_app_purchase: ^3.1.13
   in_app_purchase_android: ^0.4.0+1
   in_app_purchase_storekit: ^0.4.0
-  image_picker: ^1.0.7
+  image_picker: ^1.0.4
+  path_provider: ^2.1.1
+  tflite_flutter: ^0.10.1
+  camera: ^0.10.5+5
+  image: ^4.1.3
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +77,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/models/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

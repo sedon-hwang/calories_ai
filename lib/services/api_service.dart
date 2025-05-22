@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = 'https://api.calories-ai.com';
+  static const String baseUrl = 'https://api.calories-ai.com';
   static const Duration _timeout = Duration(seconds: 10);
 
   Map<String, String> _getHeaders({String? token}) {
@@ -48,5 +49,27 @@ class ApiService {
     } catch (e) {
       throw Exception('로그인 중 오류 발생: $e');
     }
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  Future<http.Response> get(String url, {Map<String, String>? headers}) async {
+    final response = await http.get(
+      Uri.parse('${ApiService.baseUrl}$url'),
+      headers: headers,
+    );
+    return response;
+  }
+
+  Future<http.Response> post(String url, {Map<String, String>? headers, Object? data}) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}$url'),
+      headers: headers,
+      body: data is String ? data : (data != null ? jsonEncode(data) : null),
+    );
+    return response;
   }
 }

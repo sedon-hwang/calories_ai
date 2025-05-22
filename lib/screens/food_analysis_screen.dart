@@ -17,7 +17,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
   final SubscriptionService _subscriptionService = SubscriptionService();
   final ImagePicker _picker = ImagePicker();
   
-  File? _selectedImage;
+  List<File> _selectedImages = [];
   List<Food>? _matchedFoods;
   bool _isLoading = false;
   String? _errorMessage;
@@ -55,32 +55,61 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     });
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        imageQuality: 80,
+  Future<void> _addImage(ImageSource source) async {
+    if (_selectedImages.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('최대 5장까지 업로드할 수 있습니다.')),
       );
-      
-      if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-          _matchedFoods = null;
-          _errorMessage = null;
-          _confirmedFoods.clear();
-        });
-        
-        await _analyzeImage();
-      }
-    } catch (e) {
+      return;
+    }
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 80);
+    if (image != null) {
       setState(() {
-        _errorMessage = '이미지 선택 중 오류가 발생했습니다: $e';
+        _selectedImages.add(File(image.path));
       });
     }
   }
 
+  Future<void> _addImagesFromGallery() async {
+    if (_selectedImages.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('최대 5장까지 업로드할 수 있습니다.')),
+      );
+      return;
+    }
+    // 안내 다이얼로그
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('사진 업로드 안내'),
+        content: Text('총 5장의 음식 사진을 업로드 할 수 있습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('확인'),
+          ),
+        ],
+      ),
+    );
+    final List<XFile>? images = await _picker.pickMultiImage(imageQuality: 80);
+    if (images != null && images.isNotEmpty) {
+      setState(() {
+        final remain = 5 - _selectedImages.length;
+        _selectedImages.addAll(
+          images.take(remain).map((xfile) => File(xfile.path)),
+        );
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   Future<void> _analyzeImage() async {
-    if (_selectedImage == null) return;
+    if (_selectedImages.isEmpty) return;
 
     setState(() {
       _isLoading = true;
@@ -89,8 +118,8 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
 
     try {
       // 구독 상태 확인
-      final hasSubscription = await _subscriptionService.hasActiveSubscription();
-      if (!hasSubscription) {
+      final subscription = await _subscriptionService.getCurrentSubscription();
+      if (subscription == null) {
         setState(() {
           _errorMessage = '이미지 분석을 위해서는 구독이 필요합니다.';
           _isLoading = false;
@@ -100,7 +129,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
 
       // 이미지 업로드 및 분석
       final matchedFoods = await _foodService.matchFoodImage(
-        _selectedImage!.path,
+        _selectedImages.map((e) => e.path).join(','),
         isMultiFood: _isMultiFoodMode,
       );
       
@@ -307,31 +336,52 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
+                    onPressed: _selectedImages.length >= 5 ? null : () => _addImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('사진 촬영'),
                   ),
                   ElevatedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
+                    onPressed: _selectedImages.length >= 5 ? null : _addImagesFromGallery,
                     icon: const Icon(Icons.photo_library),
                     label: const Text('갤러리에서 선택'),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // 선택된 이미지 표시
-              if (_selectedImage != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    _selectedImage!,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+              if (_selectedImages.isNotEmpty) ...[
+                SizedBox(
+                  height: 120,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Image.file(
+                              _selectedImages[index],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: IconButton(
+                              icon: Icon(Icons.close, color: Colors.red),
+                              onPressed: () => _removeImage(index),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               ],
 
               // 로딩 표시
@@ -376,6 +426,15 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
               // 오늘의 식사 기록
               const SizedBox(height: 24),
               _buildDailyRecords(),
+
+              // 분석 시작 버튼
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _selectedImages.isEmpty || _isLoading ? null : _analyzeImage,
+                child: _isLoading
+                    ? CircularProgressIndicator()
+                    : Text('분석 시작'),
+              ),
             ],
           ),
         ),
@@ -705,9 +764,9 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNutritionItem('칼로리', '${totalCalories.toStringAsFixed(0)}kcal', '목표의 ${goalProgress['calories']}%'),
-                _buildNutritionItem('탄수화물', '${totalCarbs.toStringAsFixed(1)}g', '${double.parse(remainingCarbs) > 0 ? '$remainingCarbsg 추가 가능' : '${remainingCarbs}g 초과'}'),
+                _buildNutritionItem('탄수화물', '${totalCarbs.toStringAsFixed(1)}g', '${double.parse(remainingCarbs) > 0 ? '${remainingCarbs}g 추가 가능' : '${remainingCarbs}g 초과'}'),
                 _buildNutritionItem('단백질', '${totalProtein.toStringAsFixed(1)}g', '목표의 ${goalProgress['protein']}%'),
-                _buildNutritionItem('지방', '${totalFat.toStringAsFixed(1)}g', '${double.parse(excessFat) > 0 ? '$excessFatg 초과' : '${excessFat}g 추가 가능'}'),
+                _buildNutritionItem('지방', '${totalFat.toStringAsFixed(1)}g', '${double.parse(excessFat) > 0 ? '${excessFat}g 초과' : '${excessFat}g 추가 가능'}'),
               ],
             ),
             const SizedBox(height: 16),

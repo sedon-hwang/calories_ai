@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'package:image_picker/image_picker.dart';
+import 'food_analysis_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,76 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _loading = false;
     });
-  }
-
-  Future<void> _pickImageFromCamera() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      // 업로드 여부 다이얼로그
-      final shouldUpload = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('사진 업로드'),
-          content: const Text('이 사진을 업로드 하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('아니오'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('예'),
-            ),
-          ],
-        ),
-      );
-      if (shouldUpload == true) {
-        // TODO: 사진 업로드 로직 구현
-        print('사진 업로드됨: \\${pickedFile.path}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진이 업로드되었습니다!')),
-        );
-      } else if (shouldUpload == false) {
-        // 다시 카메라 촬영
-        _pickImageFromCamera();
-      }
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      // 업로드 여부 다이얼로그
-      final shouldUpload = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('사진 업로드'),
-          content: const Text('이 사진을 업로드 하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('아니오'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('예'),
-            ),
-          ],
-        ),
-      );
-      if (shouldUpload == true) {
-        // TODO: 사진 업로드 로직 구현
-        print('갤러리 사진 업로드됨: \\${pickedFile.path}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진이 업로드되었습니다!')),
-        );
-      } else if (shouldUpload == false) {
-        // 다시 갤러리로 이동
-        _pickImageFromGallery();
-      }
-    }
   }
 
   @override
@@ -162,7 +93,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: const Text('사진촬영'),
                         onPressed: () {
                           Navigator.pop(context);
-                          _pickImageFromCamera();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => FoodAnalysisScreen()),
+                          );
                         },
                       ),
                     ),
@@ -174,7 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: const Text('사진업로드'),
                         onPressed: () {
                           Navigator.pop(context);
-                          _pickImageFromGallery();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => FoodAnalysisScreen()),
+                          );
                         },
                       ),
                     ),
